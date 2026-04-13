@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: techpulse-postgres
+    environment:
+      POSTGRES_DB: techpulse
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d techpulse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: techpulse-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SUPABASE_DB_URL: jdbc:postgresql://postgres:5432/techpulse
+      SUPABASE_DB_USER: postgres
+      SUPABASE_DB_PASSWORD: postgres
+      JWT_SECRET: change-me-to-strong-secret-at-least-32-chars
+      FRONTEND_URL: http://localhost:5173
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8080
+    container_name: techpulse-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  postgres_data:
